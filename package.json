@@ -106,7 +106,7 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "country-flag-emoji-polyfill@0.1.4": "patches/country-flag-emoji-polyfill@0.1.4.patch"
+      "country-flag-emoji-polyfill@0.1.1": "patches/country-flag-emoji-polyfill@0.1.1.patch"
     }
   }
 }
