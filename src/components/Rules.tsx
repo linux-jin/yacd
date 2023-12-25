@@ -1,20 +1,19 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { areEqual, VariableSizeList } from 'react-window';
-import { RuleProviderItem } from 'src/components/rules/RuleProviderItem';
-import { useRuleAndProvider } from 'src/components/rules/rules.hooks';
-import { RulesPageFab } from 'src/components/rules/RulesPageFab';
+
+import { RuleProviderItem } from '$src/components/rules/RuleProviderItem';
+import { useRuleAndProvider } from '$src/components/rules/rules.hooks';
+import { RulesPageFab } from '$src/components/rules/RulesPageFab';
 import { TextFilter } from '$src/components/shared/TextFilter';
-import { ruleFilterText } from 'src/store/rules';
-import { State } from 'src/store/types';
-import { ClashAPIConfig, RuleType } from 'src/types';
+import { useApiConfig } from '$src/store/app';
+import { ruleFilterTextAtom } from '$src/store/rules';
+import { ClashAPIConfig, RuleType } from '$src/types';
 
 import useRemainingViewPortHeight from '../hooks/useRemainingViewPortHeight';
-import { getClashAPIConfig } from '../store/app';
-import ContentHeader from './ContentHeader';
+import { ContentHeader } from './ContentHeader';
 import Rule from './Rule';
 import s from './Rules.module.scss';
-import { connect } from './StateProvider';
 
 const { memo } = React;
 
@@ -80,17 +79,10 @@ const Row = memo(({ index, style, data }: RowProps) => {
   );
 }, areEqual);
 
-const mapState = (s: State) => ({
-  apiConfig: getClashAPIConfig(s),
-});
+Row.displayName = 'MemoRow';
 
-export default connect(mapState)(Rules);
-
-type RulesProps = {
-  apiConfig: ClashAPIConfig;
-};
-
-function Rules({ apiConfig }: RulesProps) {
+export default function Rules() {
+  const apiConfig = useApiConfig();
   const [refRulesContainer, containerHeight] = useRemainingViewPortHeight();
   const { rules, provider } = useRuleAndProvider(apiConfig);
   const getItemSize = getItemSizeFactory({ provider });
@@ -101,7 +93,7 @@ function Rules({ apiConfig }: RulesProps) {
     <div>
       <div className={s.header}>
         <ContentHeader title={t('Rules')} />
-        <TextFilter placeholder="Filter" textAtom={ruleFilterText} />
+        <TextFilter placeholder="Filter" textAtom={ruleFilterTextAtom} />
       </div>
       <div ref={refRulesContainer} style={{ paddingBottom }}>
         <VariableSizeList

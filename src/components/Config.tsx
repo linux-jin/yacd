@@ -1,23 +1,29 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAtom } from 'jotai';
 import * as React from 'react';
 import { LogOut } from 'react-feather';
 import { useTranslation } from 'react-i18next';
-import * as logsApi from 'src/api/logs';
-import Select from 'src/components/shared/Select';
-import { ClashGeneralConfig, DispatchFn, State } from 'src/store/types';
-import { ClashAPIConfig } from 'src/types';
+import { useNavigate } from 'react-router-dom';
 
-import { getClashAPIConfig, getLatencyTestUrl, getSelectedChartStyleIndex } from '../store/app';
-import { fetchConfigs, getConfigs, updateConfigs } from '../store/configs';
-import { openModal } from '../store/modals';
+import { updateConfigs } from '$src/api/configs';
+import * as logsApi from '$src/api/logs';
+import Select from '$src/components/shared/Select';
+import {
+  darkModePureBlackToggleAtom,
+  latencyTestUrlAtom,
+  selectedChartStyleIndexAtom,
+  useApiConfig,
+} from '$src/store/app';
+import { useClashConfig } from '$src/store/configs';
+import { ClashGeneralConfig } from '$src/store/types';
+
 import Button from './Button';
 import s0 from './Config.module.scss';
-import ContentHeader from './ContentHeader';
+import { ContentHeader } from './ContentHeader';
+import { ToggleInput } from './form/Toggle';
 import Input, { SelfControlledInput } from './Input';
 import { Selection2 } from './Selection';
-import { connect, useStoreActions } from './StateProvider';
-import Switch from './SwitchThemed';
 import TrafficChartSample from './TrafficChartSample';
-// import ToggleSwitch from './ToggleSwitch';
 
 const { useEffect, useState, useCallback, useRef, useMemo } = React;
 
@@ -49,42 +55,22 @@ const modeOptions = [
   ['Direct', 'Direct'],
 ];
 
-const mapState = (s: State) => ({
-  configs: getConfigs(s),
-  apiConfig: getClashAPIConfig(s),
-});
-
-const mapState2 = (s: State) => ({
-  selectedChartStyleIndex: getSelectedChartStyleIndex(s),
-  latencyTestUrl: getLatencyTestUrl(s),
-  apiConfig: getClashAPIConfig(s),
-});
-
-const Config = connect(mapState2)(ConfigImpl);
-export default connect(mapState)(ConfigContainer);
-
-function ConfigContainer({ dispatch, configs, apiConfig }) {
-  useEffect(() => {
-    dispatch(fetchConfigs(apiConfig));
-  }, [dispatch, apiConfig]);
-  return <Config configs={configs} />;
+export default function ConfigContainer() {
+  const { data } = useClashConfig();
+  return <Config configs={data} />;
 }
 
 type ConfigImplProps = {
-  dispatch: DispatchFn;
   configs: ClashGeneralConfig;
-  selectedChartStyleIndex: number;
-  latencyTestUrl: string;
-  apiConfig: ClashAPIConfig;
 };
 
-function ConfigImpl({
-  dispatch,
-  configs,
-  selectedChartStyleIndex,
-  latencyTestUrl,
-  apiConfig,
-}: ConfigImplProps) {
+function Config({ configs }: ConfigImplProps) {
+  const navigate = useNavigate();
+  const [latencyTestUrl, setLatencyTestUrl] = useAtom(latencyTestUrlAtom);
+  const [selectedChartStyleIndex, setSelectedChartStyleIndex] = useAtom(
+    selectedChartStyleIndexAtom,
+  );
+  const apiConfig = useApiConfig();
   const [configState, setConfigStateInternal] = useState(configs);
   const refConfigs = useRef(configs);
   useEffect(() => {
@@ -93,26 +79,29 @@ function ConfigImpl({
     }
     refConfigs.current = configs;
   }, [configs]);
-
-  const openAPIConfigModal = useCallback(() => {
-    dispatch(openModal('apiConfig'));
-  }, [dispatch]);
-
   const setConfigState = useCallback(
     (name: keyof ClashGeneralConfig, val: ClashGeneralConfig[keyof ClashGeneralConfig]) => {
       setConfigStateInternal({ ...configState, [name]: val });
     },
-    [configState]
+    [configState],
   );
+
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: updateConfigs(apiConfig),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/configs'] });
+    },
+  });
 
   const handleSwitchOnChange = useCallback(
     (checked: boolean) => {
       const name = 'allow-lan';
       const value = checked;
       setConfigState(name, value);
-      dispatch(updateConfigs(apiConfig, { 'allow-lan': value }));
+      mutation.mutate({ 'allow-lan': value });
     },
-    [apiConfig, dispatch, setConfigState]
+    [mutation, setConfigState],
   );
 
   const handleChangeValue = useCallback(
@@ -121,7 +110,7 @@ function ConfigImpl({
         case 'mode':
         case 'log-level':
           setConfigState(name, value);
-          dispatch(updateConfigs(apiConfig, { [name]: value }));
+          mutation.mutate({ [name]: value });
           if (name === 'log-level') {
             logsApi.reconnect({ ...apiConfig, logLevel: value });
           }
@@ -140,15 +129,13 @@ function ConfigImpl({
           return;
       }
     },
-    [apiConfig, dispatch, setConfigState]
+    [apiConfig, mutation, setConfigState],
   );
 
   const handleInputOnChange = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
     (e) => handleChangeValue(e.target),
-    [handleChangeValue]
+    [handleChangeValue],
   );
-
-  const { selectChartStyleIndex, updateAppConfig } = useStoreActions();
 
   const handleInputOnBlur = useCallback<React.FocusEventHandler<HTMLInputElement>>(
     (e) => {
@@ -161,24 +148,26 @@ function ConfigImpl({
         case 'redir-port': {
           const num = parseInt(value, 10);
           if (num < 0 || num > 65535) return;
-          dispatch(updateConfigs(apiConfig, { [name]: num }));
+          mutation.mutate({ [name]: num });
           break;
         }
         case 'latencyTestUrl': {
-          updateAppConfig(name, value);
+          setLatencyTestUrl(value);
           break;
         }
         default:
           throw new Error(`unknown input name ${name}`);
       }
     },
-    [apiConfig, dispatch, updateAppConfig]
+    [mutation, setLatencyTestUrl],
   );
 
   const mode = useMemo(() => {
     const m = configState.mode;
     return typeof m === 'string' && m[0].toUpperCase() + m.slice(1);
   }, [configState.mode]);
+
+  const [pureBlack, setPureBlack] = useAtom(darkModePureBlackToggleAtom);
 
   const { t, i18n } = useTranslation();
 
@@ -197,7 +186,7 @@ function ConfigImpl({
                 onBlur={handleInputOnBlur}
               />
             </div>
-          ) : null
+          ) : null,
         )}
 
         <div>
@@ -218,15 +207,13 @@ function ConfigImpl({
           />
         </div>
 
-        <div>
-          <div className={s0.label}>Allow LAN</div>
-          <div className={s0.wrapSwitch}>
-            <Switch
-              name="allow-lan"
-              checked={configState['allow-lan']}
-              onChange={handleSwitchOnChange}
-            />
-          </div>
+        <div className={s0.item}>
+          <ToggleInput
+            id="config-allow-lan"
+            checked={configState['allow-lan']}
+            onChange={handleSwitchOnChange}
+          />
+          <label htmlFor="config-allow-lan">Allow LAN</label>
         </div>
       </div>
 
@@ -261,10 +248,9 @@ function ConfigImpl({
             OptionComponent={TrafficChartSample}
             optionPropsList={propsList}
             selectedIndex={selectedChartStyleIndex}
-            onChange={selectChartStyleIndex}
+            onChange={(v: string) => setSelectedChartStyleIndex(parseInt(v, 10))}
           />
         </div>
-
         <div>
           <div className={s0.label}>
             {t('current_backend')}
@@ -274,8 +260,18 @@ function ConfigImpl({
           <Button
             start={<LogOut size={16} />}
             label={t('switch_backend')}
-            onClick={openAPIConfigModal}
+            onClick={() => navigate('/backend')}
           />
+        </div>
+        <div className={s0.item}>
+          <ToggleInput
+            id="dark-mode-pure-black-toggle"
+            checked={pureBlack}
+            onChange={setPureBlack}
+          />
+          <label htmlFor="dark-mode-pure-black-toggle">
+            {t('dark_mode_pure_black_toggle_label')}
+          </label>
         </div>
       </div>
     </div>

@@ -8,7 +8,15 @@ import s from './ModalCloseAllConnections.module.scss';
 
 const { useRef, useCallback, useMemo } = React;
 
-export default function Comp({ isOpen, onRequestClose, primaryButtonOnTap }) {
+export default function Comp({
+  isOpen,
+  onRequestClose,
+  primaryButtonOnTap,
+}: {
+  isOpen: boolean;
+  onRequestClose: (x: any) => void;
+  primaryButtonOnTap: () => void;
+}) {
   const primaryButtonRef = useRef(null);
   const onAfterOpen = useCallback(() => {
     primaryButtonRef.current.focus();
@@ -19,7 +27,7 @@ export default function Comp({ isOpen, onRequestClose, primaryButtonOnTap }) {
       afterOpen: s.afterOpen,
       beforeClose: '',
     }),
-    []
+    [],
   );
   return (
     <Modal
@@ -32,7 +40,7 @@ export default function Comp({ isOpen, onRequestClose, primaryButtonOnTap }) {
       <p>Are you sure you want to close all connections?</p>
       <div className={s.btngrp}>
         <Button onClick={primaryButtonOnTap} ref={primaryButtonRef}>
-          I'm sure
+          I&#39;m sure
         </Button>
         {/* im lazy :) */}
         <div style={{ width: 20 }} />

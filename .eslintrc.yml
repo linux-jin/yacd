@@ -4,14 +4,21 @@ parserOptions:
   project: tsconfig.json
   sourceType: module
 
+settings:
+  react:
+    version: detect
+
 plugins:
   - simple-import-sort
+  - unused-imports
   - jsx-a11y
 
 extends:
+  # - react-app
   - 'plugin:@typescript-eslint/recommended'
-  - react-app
   - 'plugin:jsx-a11y/recommended'
+  - 'plugin:react/recommended'
+  - 'plugin:react-hooks/recommended'
   - prettier
 
 env:
@@ -20,6 +27,7 @@ env:
 globals:
   __DEV__: true
 
+# more rules here https://github.com/facebook/create-react-app/blob/main/packages/eslint-config-react-app/index.js
 rules:
   '@typescript-eslint/no-empty-interface': 'off'
   '@typescript-eslint/interface-name-prefix': 'off'
@@ -27,8 +35,14 @@ rules:
   '@typescript-eslint/no-explicit-any': 'off'
   '@typescript-eslint/camelcase': 'off'
   'no-use-before-define': 'off'
-  '@typescript-eslint/no-unused-vars':
-    - 'error'
+  # '@typescript-eslint/no-unused-vars':
+  #   - 'error'
+  #   - argsIgnorePattern: '^_'
+  ## disable '@typescript-eslint/no-unused-vars' and use 'unused-imports' plugin/rules instead
+  '@typescript-eslint/no-unused-vars': 'off'
+  'unused-imports/no-unused-imports': 'error'
+  'unused-imports/no-unused-vars':
+    - 'warn'
     - argsIgnorePattern: '^_'
   '@typescript-eslint/no-use-before-define':
     - error
@@ -43,6 +57,7 @@ rules:
     - warn
     - additionalHooks: useRecoilCallback
   simple-import-sort/imports: error
+  'react/prop-types': warn
 #   quotes: ["error", "single"]
 #   strict: ["error", "never"]
 #   no-console: "warn"

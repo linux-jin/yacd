@@ -1,5 +1,7 @@
-import produce, * as immer from 'immer';
-import React from 'react';
+import * as immer from 'immer';
+import React, { ReactNode } from 'react';
+
+import { State } from '$src/store/types';
 
 // in logs store we update logs in place
 // outside of immer produce
@@ -28,7 +30,15 @@ export function useStoreActions() {
 }
 
 // boundActionCreators
-export default function Provider({ initialState, actions = {}, children }) {
+export default function Provider({
+  initialState,
+  actions = {},
+  children,
+}: {
+  initialState: Partial<State>;
+  actions: any;
+  children: ReactNode;
+}) {
   const stateRef = useRef(initialState);
   const [state, setState] = useState(initialState);
   const getState = useCallback(() => stateRef.current, []);
@@ -41,7 +51,7 @@ export default function Provider({ initialState, actions = {}, children }) {
     (actionId: string | ((a: any, b: any) => any), fn: (s: any) => void) => {
       if (typeof actionId === 'function') return actionId(dispatch, getState);
 
-      const stateNext = produce(getState(), fn);
+      const stateNext = immer.produce(getState(), fn);
       if (stateNext !== stateRef.current) {
         if (process.env.NODE_ENV === 'development') {
           // eslint-disable-next-line no-console
@@ -51,7 +61,7 @@ export default function Provider({ initialState, actions = {}, children }) {
         setState(stateNext);
       }
     },
-    [getState]
+    [getState],
   );
   const boundActions = useMemo(() => bindActions(actions, dispatch), [actions, dispatch]);
 

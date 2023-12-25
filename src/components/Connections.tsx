@@ -5,18 +5,17 @@ import { Pause, Play, X as IconClose } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 import { Tab, TabList, TabPanel, Tabs } from 'react-tabs';
 import { ConnectionItem } from 'src/api/connections';
-import { State } from 'src/store/types';
+
+import { useApiConfig } from '$src/store/app';
 
 import * as connAPI from '../api/connections';
 import useRemainingViewPortHeight from '../hooks/useRemainingViewPortHeight';
-import { getClashAPIConfig } from '../store/app';
 import s from './Connections.module.scss';
 import ConnectionTable from './ConnectionTable';
 import { MutableConnRefCtx } from './conns/ConnCtx';
-import ContentHeader from './ContentHeader';
+import { ContentHeader } from './ContentHeader';
 import ModalCloseAllConnections from './ModalCloseAllConnections';
 import { Action, Fab, position as fabPosition } from './shared/Fab';
-import { connect } from './StateProvider';
 import SvgYacd from './SvgYacd';
 
 const { useEffect, useState, useRef, useCallback } = React;
@@ -57,7 +56,7 @@ type FormattedConn = {
 };
 
 function hasSubstring(s: string, pat: string) {
-  return s.toLowerCase().includes(pat.toLowerCase());
+  return (s ?? '').toLowerCase().includes(pat.toLowerCase());
 }
 
 function filterConns(conns: FormattedConn[], keyword: string) {
@@ -74,15 +73,15 @@ function filterConns(conns: FormattedConn[], keyword: string) {
           conn.type,
           conn.network,
           conn.processPath,
-        ].some((field) => hasSubstring(field, keyword))
+        ].some((field) => hasSubstring(field, keyword)),
       );
 }
 
-function formatConnectionDataItem(
+function fmtConnItem(
   i: ConnectionItem,
   prevKv: Record<string, { upload: number; download: number }>,
   now: number,
-  mutConnCtxRef: { hasProcessPath: boolean }
+  mutConnCtxRef: { hasProcessPath: boolean },
 ): FormattedConn {
   const { id, metadata, upload, download, start, chains, rule, rulePayload } = i;
   const { host, destinationPort, destinationIP, network, type, sourceIP, sourcePort } = metadata;
@@ -90,10 +89,8 @@ function formatConnectionDataItem(
   if (mutConnCtxRef.hasProcessPath === false && typeof processPath !== 'undefined') {
     mutConnCtxRef.hasProcessPath = true;
   }
-
   // host could be an empty string if it's direct IP connection
-  let host2 = host;
-  if (host2 === '') host2 = destinationIP;
+  const host2 = host || destinationIP || '';
   const prev = prevKv[id];
   const ret = {
     id,
@@ -127,7 +124,8 @@ function connQty({ qty }) {
   return qty < 100 ? '' + qty : '99+';
 }
 
-function Conn({ apiConfig }) {
+export default function Conn() {
+  const apiConfig = useApiConfig();
   const [refContainer, containerHeight] = useRemainingViewPortHeight();
   const [conns, setConns] = useState([]);
   const [closedConns, setClosedConns] = useState([]);
@@ -146,15 +144,13 @@ function Conn({ apiConfig }) {
   const prevConnsRef = useRef(conns);
   const connCtx = React.useContext(MutableConnRefCtx);
   const read = useCallback(
-    ({ connections }) => {
+    ({ connections }: { connections: ConnectionItem[] }) => {
       const prevConnsKv = arrayToIdKv(prevConnsRef.current);
       const now = Date.now();
-      const x = connections.map((c: ConnectionItem) =>
-        formatConnectionDataItem(c, prevConnsKv, now, connCtx)
-      );
+      const x = connections.map((c) => fmtConnItem(c, prevConnsKv, now, connCtx));
       const closed = [];
       for (const c of prevConnsRef.current) {
-        const idx = x.findIndex((conn: ConnectionItem) => conn.id === c.id);
+        const idx = x.findIndex((conn) => conn.id === c.id);
         if (idx < 0) closed.push(c);
       }
       setClosedConns((prev) => {
@@ -170,7 +166,7 @@ function Conn({ apiConfig }) {
         prevConnsRef.current = x;
       }
     },
-    [setConns, isRefreshPaused, connCtx]
+    [setConns, isRefreshPaused, connCtx],
   );
   useEffect(() => {
     return connAPI.fetchData(apiConfig, read);
@@ -243,9 +239,3 @@ function Conn({ apiConfig }) {
     </div>
   );
 }
-
-const mapState = (s: State) => ({
-  apiConfig: getClashAPIConfig(s),
-});
-
-export default connect(mapState)(Conn);

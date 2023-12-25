@@ -1,13 +1,14 @@
 import type { ClashAPIConfig } from 'src/types';
 
-export type ClashAPIConfigWithAddedAt = ClashAPIConfig & { addedAt?: number };
+export type ThemeType = 'dark' | 'light' | 'auto';
+
 export type StateApp = {
   selectedClashAPIConfigIndex: number;
-  clashAPIConfigs: ClashAPIConfigWithAddedAt[];
+  clashAPIConfigs: ClashAPIConfig[];
 
   latencyTestUrl: string;
   selectedChartStyleIndex: number;
-  theme: string;
+  theme: ThemeType;
 
   collapsibleIsOpen: Record<string, boolean>;
   proxySortBy: string;
@@ -23,6 +24,12 @@ export type ClashGeneralConfig = {
   'allow-lan': boolean;
   mode: string;
   'log-level': string;
+  // new
+  authentication?: unknown[];
+  'bind-address'?: string;
+  ipv6?: boolean;
+  'mixed-port'?: number;
+  'tproxy-port'?: number;
 };
 
 ///// store.proxies
@@ -90,34 +97,18 @@ export type StateLogs = {
   tail: number;
 };
 
-///// store.configs
-
-export type StateConfigs = {
-  configs: ClashGeneralConfig;
-  haveFetchedConfig: boolean;
-};
-
-///// store.modals
-
-export type StateModals = {
-  apiConfig: boolean;
-};
-
 //////
 
 export type State = {
-  app: StateApp;
-  configs: StateConfigs;
   proxies: StateProxies;
   logs: StateLogs;
-  modals: StateModals;
 };
 
 export type GetStateFn = () => State;
 export interface DispatchFn {
   (msg: string, change: (s: State) => void): void;
-  (action: (dispatch: DispatchFn, getState: GetStateFn) => Promise<void>): ReturnType<
-    typeof action
-  >;
+  (
+    action: (dispatch: DispatchFn, getState: GetStateFn) => Promise<void>,
+  ): ReturnType<typeof action>;
   (action: (dispatch: DispatchFn, getState: GetStateFn) => void): ReturnType<typeof action>;
 }
